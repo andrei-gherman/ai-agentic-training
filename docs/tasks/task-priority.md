@@ -1,36 +1,41 @@
 # Task priority — implementation task list
 
 **Status:** Approved  
+**Approval owner:** Gabriel Preda  
 **Specification:** `docs/specs/task-priority.md`  
-**Requirements:** `docs/requirements/task-priority.md`  
-**Approval owner:** AG  
-**Approved by:** AG on 2026-11-17 (source of authority: explicit approval record from AG)
+**Requirements:** `docs/requirements/task-priority.md`
 
-These are approved tasks under the AG-approved requirements and specification. Open decisions remain tracked for implementation confirmation.
-
-| Task ID | Reviewable result | Acceptance criteria | Planned verification evidence | Dependencies / gate | Status |
+| Task ID | Reviewable result | Acceptance criteria | Planned verification evidence | Depends on | Status |
 |---|---|---|---|---|---|
-| TP-1 | Task creation accepts only an integer priority from 1 through 5, with 5 most critical; missing and invalid values are rejected. | AC-1 | Planned focused API tests for priorities 1 and 5, missing priority, non-integer input, and values below 1 or above 5. Assert the rejection status after the validation-status decision is confirmed. | None | Approved |
-| TP-2 | A successful task creation response includes the submitted priority alongside existing task fields and retains the `201` status. | AC-2 | Planned focused API test asserting the create response status, priority, and existing task fields. | None | Approved |
-| TP-3 | Task list results include each task's priority, retain current ordering, and support optional `completed` and `priority` filters. Either filter works alone; when both are supplied, results match both. | AC-3 | Planned focused API tests for priority-only and `completed`-only filtering, combined intersection across matching and non-matching task combinations, and stable list order. | Filter parameter and exact-match interpretation are inferred; confirm before implementation. | Approved |
-| TP-4 | After creation, a task's priority can be changed and the new value is returned and visible in a subsequent list result without reordering. | AC-4 | Conditional planned API tests for a valid change, subsequent list state and order, invalid priority, and unknown task ID. | Proceed only after the proposed update method, path, request shape, and unknown-ID behavior are approved. | Approved |
-| TP-5 | Superseded: the proposed priority/completed filter-combinability work is now included in TP-3 under approved AC-3. | P-AC-1 (superseded by AC-3 on 2026-11-17) | Verification is covered by TP-3. | None | Approved |
+| T-1 | Task creation accepts `low`, `normal`, or `high`, defaults omitted priority to `normal`, and rejects unsupported values with HTTP 422. | AC-1 | Planned focused API tests for each allowed value, the omitted-value default, and an unsupported value returning 422. | — | Done — `.venv/bin/python -m pytest tests/test_api.py -k priority -v`: 9 passed; `.venv/bin/python -m pytest -q`: 16 passed (2026-11-17) |
+| T-2 | Successful task-creation and task-list responses include each task's priority. | AC-2 | Planned focused API assertions on the priority field and value in both response shapes. | T-1 | Done — `.venv/bin/python -m pytest tests/test_api.py -k priority -v`: 12 passed; `.venv/bin/python -m pytest -q`: 19 passed (2026-11-17). No app code change; behavior was already provided by T-1. |
+| T-3 | The task list supports priority filtering and can combine it with the existing `completed` filter; unsupported priority filters return HTTP 422. | AC-3 | Planned focused API tests for each supported priority filter, an unsupported value returning 422, and a request supplying both filters that asserts only tasks matching both are returned. Include a regression check for the existing `completed` filter. | T-1 | Done — `.venv/bin/python -m pytest tests/test_api.py -k filter -q`: 14 passed; `.venv/bin/python -m pytest -q`: 33 passed (2026-11-17). Tests written first: 12 new tests failed before the change; the 2 `completed`-only regression tests already passed. |
+| T-4 | Task lists order priorities `high`, `normal`, then `low`, with no alternate priority sort or priority-change behavior added. | AC-4, AC-5 | Planned focused API ordering test across all three priorities and an API-surface review for alternate sorting or priority mutation behavior. | T-1 | Done — `.venv/bin/python -m pytest tests/test_api.py -k "orders or keeps_priority" -q`: 2 passed (both failed before the change); `.venv/bin/python -m pytest -q`: 35 passed (2026-11-17). API-surface review: only `GET /healthz`, `GET /tasks`, `POST /tasks`; no sort parameter or priority-update route. Tie order is not asserted (stable sort keeps stored order; decision still open). |
 
 ## Traceability check
 
-| Acceptance criterion | Task IDs | Verification evidence | Coverage |
+| Acceptance criterion | Task IDs | Planned verification evidence | Coverage |
 |---|---|---|---|
-| AC-1 | TP-1 | Planned focused API validation tests; rejection status awaits confirmation. | Covered; validation status unresolved. |
-| AC-2 | TP-2 | Planned focused create-response API test. | Covered. |
-| AC-3 | TP-3 | Planned focused list API test for priority, order, and `completed` filtering. | Covered. |
-| AC-4 | TP-4 | Conditional planned update API tests; contract must first be approved. | Conditionally covered; blocked on an open decision. |
+| AC-1 | T-1 | Allowed-value, default, and invalid-creation API tests | Covered |
+| AC-2 | T-2 | Creation and list response-shape API assertions | Covered |
+| AC-3 | T-3 | Priority-filter and invalid-filter API tests; existing `completed` filter regression check; combined-filter API test asserting both conditions apply | Covered by planned verification |
+| AC-4 | T-4 | API ordering test for `high`, `normal`, and `low` | Covered for priority order; tie order awaits decision |
+| AC-5 | T-4 | Review the API surface for absence of priority mutation behavior | Covered |
 
-No acceptance criteria are omitted from the task mapping. No unrelated tasks are included.
+## Open decisions
+
+- Whether tasks with equal priority preserve their current relative order or have unspecified order. Until resolved, T-4 verifies only ordering between priority groups.
+
+## Unrelated tasks
+
+None. Each task advances one or more listed acceptance criteria.
 
 ## Scope changes
 
 Keep this aligned with the scope-change record in `docs/specs/task-priority.md`.
 
-- **SC-1 — Approved by the requester (2026-11-17):** completed and priority filters must be combinable. This updates AC-3 / S-3; TP-3 now covers priority-only, completed-only, combined intersection, and order-preservation verification. P-AC-1 / TP-5 is superseded by AC-3 / TP-3.
+| Date | Change and source | Affected criteria/tasks/planned verification | Review status |
+|---|---|---|---|
+| 2026-11-17 | Requester/trainer requested that `completed` and `priority` filters be combinable; requester approved the change with “Approve the change as requested.” | AC-3 / T-3; planned API test supplying both filters and asserting only tasks matching both are returned. Existing independent-filter and invalid-priority checks remain. | Approved for this scope change; requirements and specification are also approved. |
 
-The scope change is approved under AG authority, and the requirements, specification, and task list are approved as a coordinated package.
+The requirements, specification, and task list are approved by Gabriel Preda. T-1, T-2, T-3, and T-4 are Done (evidence above). The equal-priority ordering decision remains open.

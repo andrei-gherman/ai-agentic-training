@@ -1,53 +1,58 @@
 # Task priority — feature specification
 
 **Status:** Approved  
-**Requirements source:** [`docs/requirements/task-priority.md`](../requirements/task-priority.md)  
-**Approval owner:** AG  
-**Approved by:** AG on 2026-11-17 (source of authority: explicit approval record from AG)
+**Requirements source:** [docs/requirements/task-priority.md](../requirements/task-priority.md)  
+**Approval owner:** Gabriel Preda
 
 ## Outcome
 
-Users can identify task urgency from priority information returned by the Task API. Priority can also be changed after task creation, subject to approval of the provisional update contract. [AC-1–AC-4]
+Task API users can recognize urgency from each task's priority and retrieve tasks of a requested priority. The API continues to support its existing task-creation and completion-filter behavior.
+
+## Current API behavior
+
+- `GET /tasks` returns task objects with `id`, `title`, and `completed`; it can filter by `completed=true|false`, or return all tasks when omitted. ([implementation](../../app/main.py#L42-L49), [README contract](../../README.md#L28-L43))
+- `POST /tasks` requires a non-whitespace title of 1–120 characters, optionally accepts `completed` (default `false`), and returns `201` with the created task. Invalid request data returns `422`; tasks are held in memory. ([implementation](../../app/main.py#L11-L57), [README contract](../../README.md#L45-L76))
+- The API has no priority field, priority filter, or task-update endpoint today. The existing tests cover task creation and listing, but not priority behavior. ([tests](../../tests/test_api.py), [implementation](../../app/main.py#L11-L57))
 
 ## Scope and behavior
 
 | Spec ID | Behavior or constraint | Source criterion |
 |---|---|---|
-| S-1 | Task creation requires an integer priority from 1 through 5, where 5 is most critical; missing or out-of-range values are rejected. The exact validation status remains unresolved. | AC-1 |
-| S-2 | Successful creation returns `201` and includes priority with the existing task fields. | AC-2 |
-| S-3 | Task listing includes priority, preserves current list order, and supports optional `completed` and `priority` filters. Either filter can be used alone; when both are supplied, returned tasks match both. The priority filter uses the `priority` query parameter with an integer from 1 through 5. | AC-3 |
-| S-4 | Provisionally, priority can be changed through the proposed `PATCH /tasks/{task_id}` contract. A successful change returns the updated task and is reflected by a later list request without reordering; invalid priority is rejected and an unknown ID returns `404`. This behavior depends on approval of the proposed contract. | AC-4 |
+| S-1 | Task creation accepts `low`, `normal`, or `high` priority; omission means `normal`, and unsupported values return `422`. | [AC-1](../requirements/task-priority.md#acceptance-criteria) |
+| S-2 | Successful task-creation and task-list responses include priority on every task. | [AC-2](../requirements/task-priority.md#acceptance-criteria) |
+| S-3 | A priority query returns only tasks with that priority; unsupported filter values return `422`. When `completed` and `priority` are both supplied, results match both filters. | [AC-3](../requirements/task-priority.md#acceptance-criteria) |
+| S-4 | Without another sort option, task lists order priorities `high`, `normal`, then `low`. Equal-priority ordering is unresolved. | [AC-4](../requirements/task-priority.md#acceptance-criteria) |
+| S-5 | This scope adds no behavior for changing priority after creation. | [AC-5](../requirements/task-priority.md#acceptance-criteria) |
 
-## Constraints and exclusions
+## Out of scope
 
-- Preserve existing task fields and the `completed` filter; do not reorder tasks by priority. [AC-2, AC-3]
-- Keep the existing in-memory task lifetime; no database or persistence change is specified. [AC-2–AC-4]
-- Current implementation has no priority field or task-update route; current tests do not cover priority or updates. These are proposed behaviors, not existing contract. [AC-1–AC-4]
-- A separate user interface is not specified; whether API responses are sufficient remains open. [AC-1–AC-4]
+- Changing priority after task creation or offering an alternate priority sort order. ([AC-4](../requirements/task-priority.md#acceptance-criteria), [AC-5](../requirements/task-priority.md#acceptance-criteria))
+- UI, persistence, authentication, and external integrations. ([requirements constraints](../requirements/task-priority.md#non-goals-and-constraints))
 
 ## Verification intent
 
-Planned focused API tests should verify each behavior below. Existing tests provide coverage patterns for creation, listing, title validation, and completion filtering; they do not yet provide evidence for this feature.
+Add focused API tests for accepted priority values and the default, priority in both response shapes, priority filtering and invalid values, and high-first ordering. Verify that combined `completed` and `priority` filters return only tasks matching both. Equal-priority ordering remains unresolved. Existing tests remain evidence for the current task behavior; they do not yet verify priority.
 
 | Spec ID | Planned evidence | Evidence status |
 |---|---|---|
-| S-1 | Test valid priority values and rejection of missing, non-integer, and out-of-range priorities; assert the response status after that decision is resolved. | Planned |
-| S-2 | Test that creation returns `201` and includes submitted priority with existing task fields. | Planned |
-| S-3 | Test priority presence, priority-only and `completed`-only filtering, the combined filter's intersection, and unchanged list ordering. | Planned |
-| S-4 | If the proposed update contract is approved, test valid update response and subsequent list state, invalid priority, unknown task ID, and order preservation. | Conditional |
+| S-1 | Creation tests for each allowed value, omitted priority, and unsupported values returning `422`. | Planned |
+| S-2 | Assertions that successful creation and listing responses include priority. | Planned |
+| S-3 | List-filter tests for each allowed priority and unsupported values returning `422`, plus a combined-filter test asserting that only tasks matching both `completed` and `priority` are returned. | Planned |
+| S-4 | List-order test covering `high`, `normal`, and `low`; tie behavior awaits decision. | Planned |
+| S-5 | Review the API surface to confirm no priority-change behavior is added. | Planned |
 
 ## Assumptions and unresolved decisions
 
-- The requirements and this specification are approved by AG; open decisions remain tracked for final confirmation but do not invalidate the approved scope.
-- Decide whether to use the proposed `PATCH /tasks/{task_id}` method, path, request shape, and `404` behavior. [AC-4]
-- Decide whether API visibility is sufficient or a UI is also in scope. [AC-1–AC-4]
-- Confirm whether missing or invalid priority should return `422`; this is proposed from current validation behavior, not confirmed. [AC-1]
-- Confirm the inferred `priority` query parameter and exact-match behavior before implementation. [AC-3]
+- Preserve the existing `completed` filter and combine it with `priority` when both are supplied, as approved in [AC-3](../requirements/task-priority.md#acceptance-criteria).
+- Equal-priority tasks may preserve their current relative order or have unspecified order; the requirements do not decide which. Resolve before asserting tie behavior.
+- The requirements and specification are Approved by Gabriel Preda. Implementation remains gated on selection of a task.
 
-## Scope change record
+## Scope changes
 
-| ID | Change, source, and approval | Impact and planned verification |
-|---|---|---|
-| SC-1 | Requester/trainer instruction on 2026-11-17: completed and priority filters must be combinable. **Approved by the requester on 2026-11-17.** | Affects AC-3 / S-3. AC-3 now specifies the `priority` query parameter (integer 1–5), either filter alone, and intersection when both are supplied, preserving list order. Planned verification: test priority-only, completed-only, and combined requests against tasks spanning matching and non-matching combinations; assert the combined result is the intersection in the original order. Previous proposal P-AC-1 is superseded by AC-3. |
+| Date | Change and source | Affected criteria/tasks/evidence | Review status |
+|---|---|---|---|
+| 2026-11-17 | Requester/trainer requested that the existing `completed` filter and the new `priority` filter be combinable; requester approved the change with “Approve the change as requested.” | AC-3 / S-3; T-3; verify that supplying both filters returns only tasks matching both. | Approved for this scope change; requirements and specification are also approved. |
 
-The scope change is approved under AG authority, and the requirements and specification are approved as a coordinated package. Other open decisions are listed above.
+### Approved scope change: combine task-list filters
+
+The approved behavior is that a single `GET /tasks` request may supply both `completed` and `priority`, and the returned tasks must satisfy both filters. The requirements' AC-3 was updated first to record this decision. The separate equal-priority ordering question remains open.
