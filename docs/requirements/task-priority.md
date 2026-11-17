@@ -1,8 +1,9 @@
 # Task priority — requirements worksheet
 
-**Status:** Draft  
-**Approval owner:** Unassigned  
-**Last reviewed:** 2026-11-16 (draft; not approved)
+**Status:** Approved  
+**Approval owner:** AG  
+**Approved by:** AG on 2026-11-17 (source of authority: explicit approval record from AG)  
+**Last reviewed:** 2026-11-17
 
 ## Request
 
@@ -23,6 +24,7 @@ Let users identify task urgency through priority information in the Task API, an
 | [tests/test_api.py](../../tests/test_api.py), [tests/conftest.py](../../tests/conftest.py) | Existing endpoint coverage and per-test in-memory reset. | No priority or task-update tests. |
 | [README.md](../../README.md) | Documents the current API, in-memory lifetime, and absence of a user interface. | Describes current state, not whether a future UI is in scope. |
 | Requester clarifications in this requirements review | Priority is an integer 1–5, 5 most critical; required on create; included in create and list responses; list order unchanged; priority may change after creation. | The update mechanism and some API edge behavior remain unspecified. |
+| Requester/trainer scope-change instruction and requester approval, 2026-11-17 | Approves combining the existing completed filter with a priority filter. | This decision affects AC-3. Implementation is not authorized by this requirements update. |
 
 ## Confirmed facts
 
@@ -36,38 +38,46 @@ Let users identify task urgency through priority information in the Task API, an
 | Statement | Evidence | Confirmation needed? |
 |---|---|---|
 | **Proposed update contract:** add `PATCH /tasks/{task_id}` accepting a body containing only `priority`; return the updated task with `200`; use `404` for an unknown task ID and `422` for invalid priority. | The requester authorized defining the update mechanism; current API has no update route. `422` follows the existing FastAPI/Pydantic validation pattern. | Yes. This is a proposal, not an existing API behavior or an approved requirement. |
+| **Proposed filter interface detail:** use a `priority` query parameter for an exact priority match, accepting integer values 1 through 5. | The approved scope requires priority filtering; AC-1 establishes the task priority range. The parameter name and exact-match interpretation are inferred to make the filter concrete. | Yes. The combinability scope is approved, but this interface detail was not separately confirmed. |
 | The request is API-scoped, with no separate UI change. | The requester specified create/list API responses; the README says this starter has no UI. | Yes; the README describes current state, not future scope. |
 
 ## Acceptance criteria
 
-1. **Create validation:** `POST /tasks` requires `priority` as an integer from 1 through 5; 5 represents the most critical priority. Missing or out-of-range values are rejected. A `422` response is proposed, following the current validation pattern.  
+1. **AC-1 — Create validation:** `POST /tasks` requires `priority` as an integer from 1 through 5; 5 represents the most critical priority. Missing or out-of-range values are rejected. A `422` response is proposed, following the current validation pattern.  
    **Trace:** requester clarification; `TaskCreate` in [app/main.py](../../app/main.py); existing validation assertion in [tests/test_api.py](../../tests/test_api.py).
 
-2. **Create response:** a successful `POST /tasks` returns `201` and includes the submitted `priority` in the created task, alongside the existing task fields.  
+2. **AC-2 — Create response:** a successful `POST /tasks` returns `201` and includes the submitted `priority` in the created task, alongside the existing task fields.  
    **Trace:** requester clarification; `create_task` and `Task` in [app/main.py](../../app/main.py).
 
-3. **List response and ordering:** `GET /tasks` includes `priority` for each task and retains the current list order; the existing `completed` filter continues to work.  
-   **Trace:** requester clarification; `list_tasks` in [app/main.py](../../app/main.py).
+3. **AC-3 — List response and ordering:** `GET /tasks` includes `priority` for each task and retains the current list order; the existing `completed` filter continues to work.  
+   `GET /tasks` also accepts an optional priority filter using the `priority` query parameter and an integer value from 1 through 5. Either filter may be used alone. When both `completed` and `priority` are supplied, a task is returned only if it matches both filters; list order remains unchanged.  
+   **Trace:** requester clarification; approved scope change SC-1 below; `list_tasks` in [app/main.py](../../app/main.py).
 
-4. **Change after creation — provisional:** using the proposed `PATCH /tasks/{task_id}` contract, a valid priority change returns the updated task, and a subsequent `GET /tasks` shows the new priority without changing the list order. Invalid priority is rejected; an unknown task ID returns `404`.  
+4. **AC-4 — Change after creation — provisional:** using the proposed `PATCH /tasks/{task_id}` contract, a valid priority change returns the updated task, and a subsequent `GET /tasks` shows the new priority without changing the list order. Invalid priority is rejected; an unknown task ID returns `404`.  
    **Trace:** requester clarification that priority can change; proposed update contract above. This criterion depends on approval of that contract.
 
 ## Non-goals and constraints
 
 - Do not reorder tasks by priority; the requester specified that listing keeps its current order.
-- **Provisional scope boundary:** priority-based filtering is not included in these criteria pending the open question below.
+- The priority filter uses the same 1–5 integer range as task priority.
 - The current starter has no UI and stores tasks in memory. No UI, database, or persistence change is specified. Sources: [README.md](../../README.md), [app/main.py](../../app/main.py).
-- Preserve existing task fields and the `completed` filter unless separately approved.
+- Preserve existing task fields and the `completed` filter.
+
+## Scope-change record
+
+| ID | Change and source | Decision and affected criterion |
+|---|---|---|
+| SC-1 | Requester/trainer instruction, 2026-11-17: completed and priority filters must be combinable. | **Approved by AG on 2026-11-17.** AC-3 is updated: either filter can be used alone; when both are supplied, results match both filters and preserve list order. This scope change is approved as part of the AG-approved requirements package. |
 
 ## Open questions
 
 - Should the proposed `PATCH /tasks/{task_id}` method, path, request shape, and `404` behavior be used, or should the update contract differ?
-- Should `GET /tasks` support filtering by priority? The requester specified that list order remains unchanged but did not address filtering.
 - Is API response visibility sufficient, or is a separate user interface also in scope?
 - Should missing or out-of-range priority use the existing `422` validation response? This is proposed from current behavior, not specified by the requester.
+- Confirm the inferred priority-filter query parameter and exact-match behavior before implementation.
 
 ## Review record
 
-- **Decision:** Draft; not approved.
-- **Reviewed by:** Unassigned.
-- **Notes:** Update this record only after the responsible person reviews the requirements and resolves the open decisions.
+- **Decision:** Approved by AG on 2026-11-17. Scope change SC-1 remains approved under the same authority.
+- **Reviewed by:** AG.
+- **Notes:** AG approved the requirements package and its scope change record. Open decisions remain tracked, but this document is approved for execution planning.
